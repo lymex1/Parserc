@@ -1,10 +1,33 @@
 import time
 import os
+import sqlite3
 from bs4 import BeautifulSoup
 from selenium import webdriver
 
 path = os.path.abspath("source-page.html")
 
+
+#Create database
+def create_db():
+    with sqlite3.connect('parser.db') as db:
+        c = db.cursor()
+        c.execute("""CREATE TABLE IF NOT EXISTS parser(
+            TX TEXT,
+            date TEXT,
+            sender TEXT,
+            recipient TEXT,
+            quantity TEXT,
+            id INTEGER
+        )""")
+
+
+# Insert data in db
+def insert_in_db(TX, date, sender, recipient, quantity, id):
+    with sqlite3.connect('parser.db') as db:
+        c = db.cursor()
+        c.execute("INSERT INTO parser VALUES(?, ?, ?, ?, ?, ?)", (str(TX), str(date), str(sender), str(recipient), quantity, int(id)))
+
+# Get html
 def get_source_html(url):
     driver = webdriver.Chrome()
     driver.maximize_window()
@@ -12,7 +35,6 @@ def get_source_html(url):
     try:
         driver.get(url=url)
         time.sleep(3)
-
         with open("source-page.html", "w") as file:
             file.write(driver.page_source)
 
@@ -55,6 +77,8 @@ def get_items_TRANSFER(path, who, to, how_much, id):
 
 def main():
     who, to, how_much, id, TX_arr, DATE_Arr = [], [], [], [], [], []
+    if not os.path.isfile('parser.db'):
+        create_db()
 
     get_source_html(url="https://bloks.io/account/tttingenesis")
     get_items_TX_DATE(
@@ -70,10 +94,9 @@ def main():
         id=id,
     )
 
+    # Insert data in db
     for ind in range(len(TX_arr)):
-        print(
-            f"TX:{TX_arr[ind]}; DATE:{DATE_Arr[ind]}; DATA: {who[ind]} -> {to[ind]} {how_much[ind]}TTT {id[ind]}"
-        )
+        insert_in_db(TX=TX_arr[ind], date=DATE_Arr[ind], sender=who[ind], recipient=to[ind], quantity=how_much[ind], id=id[ind])
 
 
 if __name__ == "__main__":
